@@ -1,0 +1,4 @@
+{
+  "//": "Used only by `npm start`: maps the @/ alias onto compiled output for tsconfig-paths.",
+  "compilerOptions": { "paths": { "@/*": ["./dist/*"] } }
+}
