@@ -19,7 +19,9 @@ docker compose up -d postgres redis
 
 ## Layering (never skip a layer)
 
-`routes/` → `middleware/` (auth, zod validation) → `controllers/` (HTTP only) → `services/` (business logic, cache, DB) → `db/schema.ts`
+Feature folders: `src/routes/<feature>/{<feature>Routes,<feature>Controller,<feature>Service,<feature>Repository}.ts`, mounted in `src/routes/index.ts`.
+
+`<feature>Routes` → `middleware/` (auth) → `<feature>Controller` (Zod validation, req/res formatting, camelCase response) → `<feature>Service` (business logic, cache) → `<feature>Repository` (DB queries) → `db/schema.ts`. Every controller/service/repository function uses try/catch and throws `AppError` with the right status (see `.claude/rules/architecture.md`).
 
 ## Hard rules
 

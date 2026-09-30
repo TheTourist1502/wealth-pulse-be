@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '@/config/env';
 import { AppError } from '@/utils/appError';
+import { HTTP_STATUS } from '@/utils/httpStatus';
 
 export const ACCESS_COOKIE = 'accessToken';
 
@@ -13,7 +14,7 @@ function readCookie(header: string | undefined, name: string): string | undefine
 
 export const authenticate: RequestHandler = (req, _res, next) => {
   const token = readCookie(req.headers.cookie, ACCESS_COOKIE);
-  if (!token) return next(new AppError(401, 'UNAUTHORIZED', 'Authentication required'));
+  if (!token) return next(new AppError(HTTP_STATUS.UNAUTHORIZED, 'UNAUTHORIZED', 'Authentication required'));
 
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
@@ -22,6 +23,6 @@ export const authenticate: RequestHandler = (req, _res, next) => {
     next();
   } catch {
     // Expired and tampered tokens get the same 401; the client then tries /api/auth/refresh-token.
-    next(new AppError(401, 'UNAUTHORIZED', 'Invalid or expired token'));
+    next(new AppError(HTTP_STATUS.UNAUTHORIZED, 'UNAUTHORIZED', 'Invalid or expired token'));
   }
 };
