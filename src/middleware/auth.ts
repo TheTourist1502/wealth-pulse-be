@@ -7,7 +7,7 @@ import { HTTP_STATUS } from '@/utils/httpStatus';
 export const ACCESS_COOKIE = 'accessToken';
 
 // ponytail: hand-rolled single-cookie read; swap for cookie-parser if many cookies need parsing.
-function readCookie(header: string | undefined, name: string): string | undefined {
+export function readCookie(header: string | undefined, name: string): string | undefined {
   const match = header?.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
   return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
