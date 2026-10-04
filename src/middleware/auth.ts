@@ -12,17 +12,23 @@ export function readCookie(header: string | undefined, name: string): string | u
   return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
+// Returns the user id of a valid access token; throws otherwise. Shared with the Socket.io handshake.
+export const verifyAccessToken = (token: string): string => {
+  const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
+  if (typeof payload === 'string' || typeof payload.sub !== 'string') throw new Error('bad payload');
+  return payload.sub;
+};
+
 export const authenticate: RequestHandler = (req, _res, next) => {
   const token = readCookie(req.headers.cookie, ACCESS_COOKIE);
   if (!token) return next(new AppError(HTTP_STATUS.UNAUTHORIZED, 'UNAUTHORIZED', 'Authentication required'));
 
   try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
-    if (typeof payload === 'string' || typeof payload.sub !== 'string') throw new Error('bad payload');
-    req.userId = payload.sub;
+    req.userId = verifyAccessToken(token);
     next();
   } catch {
     // Expired and tampered tokens get the same 401; the client then tries /api/auth/refresh-token.
     next(new AppError(HTTP_STATUS.UNAUTHORIZED, 'UNAUTHORIZED', 'Invalid or expired token'));
   }
 };
+

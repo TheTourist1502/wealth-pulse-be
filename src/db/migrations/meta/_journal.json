@@ -15,6 +15,13 @@
       "when": 1790755956849,
       "tag": "0001_master_userlist_role_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790787418930,
+      "tag": "0002_dashboard_market_data",
+      "breakpoints": true
     }
   ]
 }

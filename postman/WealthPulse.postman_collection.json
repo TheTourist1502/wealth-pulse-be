@@ -129,6 +129,218 @@
               }
             }
           ]
+        },
+        {
+          "name": "refresh",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/refresh-token",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n}"
+            }
+          }
+        },
+        {
+          "name": "logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n}"
+            }
+          }
+        },
+        {
+          "name": "me",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Portfolios",
+      "item": [
+        {
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/portfolios",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "create",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/portfolios",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n}"
+            },
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "get",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/portfolios/:id",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "update",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/portfolios/:id",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n}"
+            },
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "remove",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/portfolios/:id",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "listTransactions",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/portfolios/:id/transactions",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "createTransaction",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/portfolios/:id/transactions",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n}"
+            },
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "deleteTransaction",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/portfolios/:id/transactions/:transactionId",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "summary",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dashboard/summary",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "holdings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dashboard/holdings",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "performance",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dashboard/performance",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Market",
+      "item": [
+        {
+          "name": "indices",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/market/indices",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "movers",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/market/movers",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "News",
+      "item": [
+        {
+          "name": "trending",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/news",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
+        },
+        {
+          "name": "holdings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/news/holdings",
+            "description": "Requires login (accessToken cookie). Run Auth > Login first."
+          }
         }
       ]
     }

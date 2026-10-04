@@ -1,6 +1,6 @@
 # WealthPulse Backend
 
-Node.js 20.12+ · TypeScript (strict) · Express 4 · PostgreSQL 15 + Drizzle ORM (`postgres` driver) · Redis 7 · Socket.io · Bull · Zod · JWT + bcryptjs · yahoo-finance2 · Jest + Supertest.
+Node.js 20.12+ · TypeScript 7 (strict) · Express 4 · PostgreSQL 15 + Drizzle ORM (`postgres` driver) · Redis 7 · Socket.io · Bull · Zod · JWT + bcryptjs · yahoo-finance2 · decimal.js · node:test + Supertest (ts-jest doesn't support TS 7).
 
 Code lives at the repo root (`src/`). Detailed conventions are in `.claude/rules/` (loaded automatically, some only for matching paths).
 
@@ -11,7 +11,8 @@ npm run dev          # tsx watch src/server.ts
 npm run build        # tsc
 npm run lint         # eslint
 npm run type-check   # tsc --noEmit
-npm test             # jest
+npm test             # node:test + tsx + supertest (test/*.test.ts; api tests need a seeded dev DB)
+npm run db:seed      # admin user's demo portfolios with real Yahoo prices
 npx drizzle-kit generate   # create migration from schema.ts
 npx drizzle-kit migrate    # apply migrations
 docker compose up -d postgres redis

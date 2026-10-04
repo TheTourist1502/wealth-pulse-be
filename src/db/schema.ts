@@ -1,12 +1,15 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
+  date,
   index,
   jsonb,
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -29,13 +32,18 @@ const timestamps = {
 // Drizzle returns numeric as string — never parseFloat-sum these.
 const money = (name: string) => numeric(name, { precision: 20, scale: 6 });
 
-const symbol = varchar('symbol', { length: 15 }).notNull();
+// Every symbol-bearing table (except alert_history, a historical copy) references the securities master.
+const symbolRef = () =>
+  varchar('symbol', { length: 15 })
+    .notNull()
+    .references(() => securities.symbol, { onDelete: 'restrict' });
 
 // ---------- enums ----------
 
 export const alertType = pgEnum('alert_type', ['price_above', 'price_below', 'percent_change']);
 export const transactionType = pgEnum('transaction_type', ['buy', 'sell']);
 export const userRole = pgEnum('user_role', ['user', 'admin']);
+export const quoteType = pgEnum('quote_type', ['EQUITY', 'ETF', 'INDEX', 'MUTUALFUND', 'CRYPTOCURRENCY', 'OTHER']);
 
 // ---------- tables ----------
 
@@ -88,7 +96,7 @@ export const holdings = pgTable(
     portfolioId: uuid('portfolio_id')
       .notNull()
       .references(() => portfolios.id, { onDelete: 'cascade' }),
-    symbol,
+    symbol: symbolRef(),
     quantity: money('quantity').notNull(),
     averageCost: money('average_cost').notNull(),
     ...timestamps,
@@ -111,10 +119,12 @@ export const transactions = pgTable(
       .notNull()
       .references(() => portfolios.id, { onDelete: 'cascade' }),
     type: transactionType('type').notNull(),
-    symbol,
+    symbol: symbolRef(),
     quantity: money('quantity').notNull(),
     price: money('price').notNull(),
     fee: money('fee').notNull().default('0'),
+    // Sells only: qty × (price − average cost at sale) − fee. Kept in sync by the ledger replay.
+    realizedPnl: money('realized_pnl'),
     executedAt: timestamp('executed_at', { withTimezone: true }).notNull().defaultNow(),
     ...timestamps,
   },
@@ -133,7 +143,7 @@ export const watchlist = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    symbol,
+    symbol: symbolRef(),
     ...timestamps,
   },
   (t) => [
@@ -149,7 +159,7 @@ export const alerts = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    symbol,
+    symbol: symbolRef(),
     type: alertType('type').notNull(),
     // price for price_above/below, percent for percent_change
     targetValue: money('target_value').notNull(),
@@ -174,7 +184,7 @@ export const alertHistory = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    symbol,
+    symbol: varchar('symbol', { length: 15 }).notNull(),
     type: alertType('type').notNull(),
     targetValue: money('target_value').notNull(),
     triggeredPrice: money('triggered_price').notNull(),
@@ -203,6 +213,67 @@ export const auditLogs = pgTable(
   (t) => [index('audit_logs_user_id_created_at_idx').on(t.userId, t.createdAt)],
 );
 
+// ---------- market data ----------
+
+// Symbol master. Natural PK: every table already stores `symbol`, a surrogate id would only add joins.
+export const securities = pgTable('securities', {
+  symbol: varchar('symbol', { length: 15 }).primaryKey(),
+  name: varchar('name', { length: 255 }),
+  exchange: varchar('exchange', { length: 50 }),
+  currency: varchar('currency', { length: 3 }),
+  quoteType: quoteType('quote_type').notNull().default('EQUITY'),
+  sector: varchar('sector', { length: 100 }), // null for ETFs/indices
+  industry: varchar('industry', { length: 100 }),
+  profileUpdatedAt: timestamp('profile_updated_at', { withTimezone: true }),
+  ...timestamps,
+});
+
+// Latest quote per symbol, overwritten by the price-update job.
+export const securityQuotes = pgTable('security_quotes', {
+  symbol: varchar('symbol', { length: 15 })
+    .primaryKey()
+    .references(() => securities.symbol, { onDelete: 'cascade' }),
+  price: money('price').notNull(),
+  previousClose: money('previous_close').notNull(),
+  change: money('change').notNull(),
+  changePercent: money('change_percent').notNull(),
+  dayHigh: money('day_high'),
+  dayLow: money('day_low'),
+  volume: bigint('volume', { mode: 'number' }),
+  marketState: varchar('market_state', { length: 20 }).notNull(),
+  quotedAt: timestamp('quoted_at', { withTimezone: true }).notNull(),
+  ...timestamps,
+});
+
+// Daily closes; ^GSPC's rows double as the trading calendar.
+export const securityPricesDaily = pgTable(
+  'security_prices_daily',
+  {
+    symbol: varchar('symbol', { length: 15 })
+      .notNull()
+      .references(() => securities.symbol, { onDelete: 'cascade' }),
+    tradeDate: date('trade_date', { mode: 'string' }).notNull(), // America/New_York date
+    close: money('close').notNull(),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.tradeDate] })],
+);
+
+// End-of-day value per portfolio, rebuilt from the transaction ledger × daily closes.
+export const portfolioSnapshots = pgTable(
+  'portfolio_snapshots',
+  {
+    portfolioId: uuid('portfolio_id')
+      .notNull()
+      .references(() => portfolios.id, { onDelete: 'cascade' }),
+    asOfDate: date('as_of_date', { mode: 'string' }).notNull(),
+    marketValue: money('market_value').notNull(),
+    netFlow: money('net_flow').notNull().default('0'), // buys (qty×price+fee) − sells (qty×price−fee) that day
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.portfolioId, t.asOfDate] })],
+);
+
 // ---------- relations ----------
 
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
@@ -213,22 +284,27 @@ export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
   user: one(users, { fields: [portfolios.userId], references: [users.id] }),
   holdings: many(holdings),
   transactions: many(transactions),
+  snapshots: many(portfolioSnapshots),
 }));
 
 export const holdingsRelations = relations(holdings, ({ one }) => ({
   portfolio: one(portfolios, { fields: [holdings.portfolioId], references: [portfolios.id] }),
+  security: one(securities, { fields: [holdings.symbol], references: [securities.symbol] }),
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
   portfolio: one(portfolios, { fields: [transactions.portfolioId], references: [portfolios.id] }),
+  security: one(securities, { fields: [transactions.symbol], references: [securities.symbol] }),
 }));
 
 export const watchlistRelations = relations(watchlist, ({ one }) => ({
   user: one(users, { fields: [watchlist.userId], references: [users.id] }),
+  security: one(securities, { fields: [watchlist.symbol], references: [securities.symbol] }),
 }));
 
 export const alertsRelations = relations(alerts, ({ one, many }) => ({
   user: one(users, { fields: [alerts.userId], references: [users.id] }),
+  security: one(securities, { fields: [alerts.symbol], references: [securities.symbol] }),
   history: many(alertHistory),
 }));
 
@@ -239,4 +315,25 @@ export const alertHistoryRelations = relations(alertHistory, ({ one }) => ({
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
+}));
+
+export const securitiesRelations = relations(securities, ({ one, many }) => ({
+  quote: one(securityQuotes, { fields: [securities.symbol], references: [securityQuotes.symbol] }),
+  dailyPrices: many(securityPricesDaily),
+  holdings: many(holdings),
+  transactions: many(transactions),
+  watchlistItems: many(watchlist),
+  alerts: many(alerts),
+}));
+
+export const securityQuotesRelations = relations(securityQuotes, ({ one }) => ({
+  security: one(securities, { fields: [securityQuotes.symbol], references: [securities.symbol] }),
+}));
+
+export const securityPricesDailyRelations = relations(securityPricesDaily, ({ one }) => ({
+  security: one(securities, { fields: [securityPricesDaily.symbol], references: [securities.symbol] }),
+}));
+
+export const portfolioSnapshotsRelations = relations(portfolioSnapshots, ({ one }) => ({
+  portfolio: one(portfolios, { fields: [portfolioSnapshots.portfolioId], references: [portfolios.id] }),
 }));
